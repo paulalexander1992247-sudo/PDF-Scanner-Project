@@ -6,14 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart PDF Assistant</title>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      padding: 24px;
+      padding: 20px;
       font-family: Arial, sans-serif;
       background: #f3f5f9;
       color: #202b3c;
@@ -21,26 +21,22 @@
 
     main {
       max-width: 650px;
-      margin: 40px auto;
-      padding: 28px;
+      margin: 30px auto;
+      padding: 24px;
       background: white;
-      border-radius: 18px;
-      box-shadow: 0 5px 25px #0000000d;
+      border-radius: 16px;
     }
 
-    h1 {
-      margin-bottom: 8px;
-      font-size: 30px;
-    }
+    h1 { font-size: 28px; }
 
     p {
-      line-height: 1.6;
       color: #566174;
+      line-height: 1.5;
     }
 
     .upload-area {
-      margin-top: 24px;
-      padding: 28px 16px;
+      margin-top: 20px;
+      padding: 22px 14px;
       border: 2px dashed #9ba9bd;
       border-radius: 12px;
       text-align: center;
@@ -48,8 +44,8 @@
 
     input, button {
       width: 100%;
-      margin-top: 16px;
-      padding: 14px;
+      margin-top: 14px;
+      padding: 13px;
       font-size: 16px;
       border-radius: 8px;
     }
@@ -70,9 +66,7 @@
       overflow-wrap: anywhere;
     }
 
-    .note {
-      font-size: 13px;
-    }
+    .note { font-size: 13px; }
   </style>
 </head>
 
@@ -81,77 +75,157 @@
     <h1>Smart PDF Assistant</h1>
 
     <p>
-      Your first step toward a smarter way
-      to scan, read, and organize documents.
+      Turn your pictures into a downloadable PDF.
+      Your files stay in your browser in this prototype.
     </p>
 
     <section class="upload-area">
-      <h2>Choose a document</h2>
+      <h2>Select document images</h2>
 
       <p>
-        Select an image or PDF from your
-        computer or phone.
+        Choose one or more JPG or PNG images.
+        Each image will become a PDF page.
       </p>
 
       <input
-        id="document"
+        id="images"
         type="file"
-        accept="image/*,.pdf,application/pdf"
+        accept="image/jpeg,image/png"
+        multiple
       >
 
-      <button id="checkButton" disabled>
-        Check selected file
+      <button id="createButton" disabled>
+        Create my PDF
       </button>
 
-      <p id="status" role="status">
-        No document selected yet.
+      <p id="status" role="status" aria-live="polite">
+        No images selected.
       </p>
     </section>
 
     <p class="note">
-      Learning prototype: files are not uploaded
-      to a server or saved by this page.
+      Prototype: PDF creation happens locally.
+      This page does not upload or save your images
+      to a server.
     </p>
   </main>
 
   <script>
-    const documentInput =
-      document.getElementById("document");
+    const imageInput = document.getElementById("images");
+    const createButton = document.getElementById("createButton");
+    const status = document.getElementById("status");
 
-    const checkButton =
-      document.getElementById("checkButton");
+    imageInput.addEventListener("change", () => {
+      const files = Array.from(imageInput.files);
 
-    const status =
-      document.getElementById("status");
+      const valid = files.length > 0 &&
+        files.every(file =>
+          ["image/jpeg", "image/png"].includes(file.type)
+        );
 
-    documentInput.addEventListener("change", () => {
-      const file = documentInput.files[0];
+      createButton.disabled = !valid;
 
-      checkButton.disabled = !file;
-
-      if (file) {
-        status.textContent =
-          "Selected: " + file.name;
-      } else {
-        status.textContent =
-          "No document selected yet.";
-      }
+      status.textContent = valid
+        ? files.length + " image(s) selected."
+        : files.length === 0
+          ? "No images selected."
+          : "Please select only JPG or PNG images.";
     });
 
-    checkButton.addEventListener("click", () => {
-      const file = documentInput.files[0];
+    createButton.addEventListener("click", async () => {
+      const files = Array.from(imageInput.files);
 
-      if (!file) {
-        status.textContent =
-          "Please choose a file first.";
+      if (!files.length) {
+        status.textContent = "Please select images first.";
         return;
       }
 
-      status.textContent =
-        "Success! Your file was selected: " +
-        file.name +
-        ". No upload has occurred.";
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        status.textContent =
+          "PDF library did not load. Check your internet connection and refresh.";
+        return;
+      }
+
+      createButton.disabled = true;
+      status.textContent = "Creating your PDF...";
+
+      try {
+        const { jsPDF } = window.jspdf;
+        let pdf;
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const dataUrl = await readImage(file);
+          const dimensions = await getImageSize(dataUrl);
+
+          const orientation =
+            dimensions.width > dimensions.height ? "landscape" : "portrait";
+
+          if (i === 0) {
+            pdf = new jsPDF({
+              orientation,
+              unit: "mm",
+              format: "a4"
+            });
+          } else {
+            pdf.addPage("a4", orientation);
+          }
+
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          const margin = 10;
+
+          const scale = Math.min(
+            (pageWidth - margin * 2) / dimensions.width,
+            (pageHeight - margin * 2) / dimensions.height
+          );
+
+          const width = dimensions.width * scale;
+          const height = dimensions.height * scale;
+          const x = (pageWidth - width) / 2;
+          const y = (pageHeight - height) / 2;
+
+          const format = file.type === "image/png" ? "PNG" : "JPEG";
+
+          pdf.addImage(dataUrl, format, x, y, width, height);
+        }
+
+        pdf.save("scanned-document.pdf");
+        status.textContent =
+          "Success! Your PDF has been created and downloaded.";
+      } catch (error) {
+        console.error(error);
+        status.textContent =
+          "Could not create the PDF. Try smaller JPG or PNG images.";
+      } finally {
+        createButton.disabled = imageInput.files.length === 0;
+      }
     });
+
+    function readImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Could not read image."));
+
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function getImageSize(dataUrl) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+
+        image.onload = () => resolve({
+          width: image.naturalWidth,
+          height: image.naturalHeight
+        });
+
+        image.onerror = () => reject(new Error("Could not read image size."));
+        image.src = dataUrl;
+      });
+    }
   </script>
 </body>
 </html>
