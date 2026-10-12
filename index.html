@@ -1,0 +1,157 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart PDF Assistant</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, sans-serif;
+      background: #f3f5f9;
+      color: #202b3c;
+    }
+
+    main {
+      max-width: 650px;
+      margin: 40px auto;
+      padding: 28px;
+      background: white;
+      border-radius: 18px;
+      box-shadow: 0 5px 25px #0000000d;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+      font-size: 30px;
+    }
+
+    p {
+      line-height: 1.6;
+      color: #566174;
+    }
+
+    .upload-area {
+      margin-top: 24px;
+      padding: 28px 16px;
+      border: 2px dashed #9ba9bd;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    input, button {
+      width: 100%;
+      margin-top: 16px;
+      padding: 14px;
+      font-size: 16px;
+      border-radius: 8px;
+    }
+
+    button {
+      border: none;
+      background: #2459d3;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #8a96aa;
+      cursor: not-allowed;
+    }
+
+    #status {
+      overflow-wrap: anywhere;
+    }
+
+    .note {
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <h1>Smart PDF Assistant</h1>
+
+    <p>
+      Your first step toward a smarter way
+      to scan, read, and organize documents.
+    </p>
+
+    <section class="upload-area">
+      <h2>Choose a document</h2>
+
+      <p>
+        Select an image or PDF from your
+        computer or phone.
+      </p>
+
+      <input
+        id="document"
+        type="file"
+        accept="image/*,.pdf,application/pdf"
+      >
+
+      <button id="checkButton" disabled>
+        Check selected file
+      </button>
+
+      <p id="status" role="status">
+        No document selected yet.
+      </p>
+    </section>
+
+    <p class="note">
+      Learning prototype: files are not uploaded
+      to a server or saved by this page.
+    </p>
+  </main>
+
+  <script>
+    const documentInput =
+      document.getElementById("document");
+
+    const checkButton =
+      document.getElementById("checkButton");
+
+    const status =
+      document.getElementById("status");
+
+    documentInput.addEventListener("change", () => {
+      const file = documentInput.files[0];
+
+      checkButton.disabled = !file;
+
+      if (file) {
+        status.textContent =
+          "Selected: " + file.name;
+      } else {
+        status.textContent =
+          "No document selected yet.";
+      }
+    });
+
+    checkButton.addEventListener("click", () => {
+      const file = documentInput.files[0];
+
+      if (!file) {
+        status.textContent =
+          "Please choose a file first.";
+        return;
+      }
+
+      status.textContent =
+        "Success! Your file was selected: " +
+        file.name +
+        ". No upload has occurred.";
+    });
+  </script>
+</body>
+</html>
